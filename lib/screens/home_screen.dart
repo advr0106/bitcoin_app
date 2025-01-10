@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:bitcoin_app/services/crypto_exchange_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:bitcoin_app/data.dart';
@@ -14,8 +13,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String? selectedCurrency = 'DOP';
-  String selectedCrypto = 'BTC';
-  String conversionResult = '1 BTC = ? USD';
+  Map<String, String> conversionResults = {};
   final CryptoExchangeService _cryptoExchangeService = CryptoExchangeService();
 
   DropdownButton<String> getAndroidDropDownButtom() {
@@ -33,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onChanged: (value) {
         setState(() {
           selectedCurrency = value;
-          updateConversionRate();
+          updateConversionRates();
         });
       },
     );
@@ -50,22 +48,32 @@ class _HomeScreenState extends State<HomeScreen> {
       onSelectedItemChanged: (value) {
         setState(() {
           selectedCurrency = currencyList[value];
-          updateConversionRate();
+          updateConversionRates();
         });
       },
       children: pickerItems,
     );
   }
 
-  void updateConversionRate() async {
+  void updateConversionRates() async {
     if (selectedCurrency != null) {
-      double? rate = await _cryptoExchangeService.getExchangeRate(selectedCrypto, selectedCurrency!);
-      setState(() {
-        conversionResult = rate != null
-            ? '1 $selectedCrypto = ${rate.toStringAsFixed(2)} $selectedCurrency'
+      Map<String, String> newResults = {};
+      for (String crypto in cryptoList) {
+        double? rate = await _cryptoExchangeService.getExchangeRate(crypto, selectedCurrency!);
+        newResults[crypto] = rate != null
+            ? '1 $crypto = ${rate.toStringAsFixed(2)} $selectedCurrency'
             : 'Failed to fetch rate';
+      }
+      setState(() {
+        conversionResults = newResults;
       });
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    updateConversionRates();
   }
 
   @override
@@ -80,21 +88,29 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(18, 18, 18, 0),
-              child: Card(
-                color: Colors.lightBlueAccent,
-                elevation: 5,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
-                  child: Text(
-                    conversionResult,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 20, color: Colors.white),
-                  ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(18, 18, 18, 0),
+                child: ListView.builder(
+                  itemCount: cryptoList.length,
+                  itemBuilder: (context, index) {
+                    String crypto = cryptoList[index];
+                    return Card(
+                      color: Colors.lightBlueAccent,
+                      elevation: 5,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
+                        child: Text(
+                          conversionResults[crypto] ?? 'Loading...',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 20, color: Colors.white),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
